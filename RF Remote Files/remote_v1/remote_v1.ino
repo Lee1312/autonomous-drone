@@ -58,7 +58,7 @@ int droneState(){
       if(ButtonFlightMode==HoverMode){
         ButtonFlightMode=AutonomousMode;
       }else{
-        ButtonFlightMode=HoverMode;
+        ButtonFlightMode=HoverMode; 
       }
     }
   }

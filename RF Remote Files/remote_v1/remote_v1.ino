@@ -64,7 +64,7 @@ int droneState(){
   }
 
   if(FlightMode==ManualMode){
-    Serial.println(" MANUAL MODE");
+    Serial.println("  MANUAL MODE");
   }
     if(FlightMode==HoverMode){
     Serial.println(" HOVER MODE");

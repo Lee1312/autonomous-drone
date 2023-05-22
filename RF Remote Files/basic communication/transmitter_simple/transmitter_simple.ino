@@ -17,7 +17,7 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
-  const char text[] = "Hello World KITA";
+  const char text[] = "Hello World JAJE";
   radio.write(&text, sizeof(text));
   Serial.println("PRINTED");
   delay(1000);

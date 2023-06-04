@@ -7,9 +7,9 @@ const byte address[6] = "00001";
 unsigned long lastRecvTime = 0;
 
 int Motor1Pin = 22;
-int Motor2Pin = 0;
-int Motor3Pin = 0;
-int Motor4Pin = 0;
+int Motor2Pin = 21;
+int Motor3Pin = 17;
+int Motor4Pin = 16;
 
 
 int throttle=0;
@@ -40,8 +40,19 @@ void setup() {
   radio.startListening();
 
   pinMode(Motor1Pin,OUTPUT);
+  pinMode(Motor2Pin,OUTPUT);
+  pinMode(Motor3Pin,OUTPUT);
+  pinMode(Motor4Pin,OUTPUT);
+
   ledcSetup(0, 250, 12);
+  ledcSetup(1, 250, 12);
+  ledcSetup(2, 250, 12);
+  ledcSetup(3, 250, 12);
+
   ledcAttachPin(Motor1Pin, 0);
+  ledcAttachPin(Motor2Pin, 1);
+  ledcAttachPin(Motor3Pin, 2);
+  ledcAttachPin(Motor4Pin, 3);
 }
 
 void loop() {
@@ -53,8 +64,8 @@ void loop() {
   }
   Serial.print("Left Y= ");
   throttle = map(data.throttle, 0, 255, 1000, 2000);
-  if(throttle>1200){
-    throttle=1200;
+  if(throttle>1150){
+    throttle=1150;
   }
   Serial.print(throttle);
   Serial.print(" X = ");
@@ -65,10 +76,10 @@ void loop() {
   Serial.print(data.roll);
   Serial.print("STATE");
   Serial.println(data.state);
-  if(throttle>1200){
-    throttle=1200;
-  }
   ledcWrite(0,1.024*throttle);
+  ledcWrite(1,1.024*throttle);
+  ledcWrite(2,1.024*throttle);
+  ledcWrite(3,1.024*throttle);
 }
 
 

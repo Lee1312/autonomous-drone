@@ -168,13 +168,13 @@ void initMPU(){
 }
 
 void printData(){
-  // Serial.print("Gyro (deg) ");
-  // Serial.print(" X=");
-  // Serial.print(rotX);
-  // Serial.print(" Y=");
-  // Serial.print(rotY);
-  // Serial.print(" Z=");
-  // Serial.print(rotZ);
+  Serial.print("Gyro (deg) ");
+  Serial.print(" X=");
+  Serial.print(rotX);
+  Serial.print(" Y=");
+  Serial.print(rotY);
+  Serial.print(" Z=");
+  Serial.println(rotZ);
   // Serial.print("Accel (g) ");
   // Serial.print(" X=");
   // Serial.print(gForceX);
@@ -182,8 +182,8 @@ void printData(){
   // Serial.print(gForceY);
   // Serial.print(" Z=");
   // Serial.print(gForceZ);
-    Serial.print("Roll Angle = ");
-    Serial.print(AngleRoll);
-    Serial.print("Pitch Angle = ");
-    Serial.println(AnglePitch);
+    // Serial.print("Roll Angle = ");
+    // Serial.print(AngleRoll);
+    // Serial.print("Pitch Angle = ");
+    // Serial.println(AnglePitch);
 }

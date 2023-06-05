@@ -2,14 +2,15 @@
 #include <nRF24L01.h>
 #include <RF24.h>
 
+//Define Radio and CommuncationChannel
 RF24 radio(2,15);
 const byte address[6] = "00001";
 unsigned long lastRecvTime = 0;
 
-int Motor1Pin = 22;
-int Motor2Pin = 21;
-int Motor3Pin = 17;
-int Motor4Pin = 16;
+int Motor1Pin = 32;
+int Motor2Pin = 33;
+int Motor3Pin = 25;
+int Motor4Pin = 26;
 
 
 int throttle=0;
@@ -60,6 +61,7 @@ void loop() {
   recvData();
   unsigned long now = millis();
   if ( now - lastRecvTime > 1000 ) {
+    Serial.print("NO SIGNAL");          
     ResetData(); // Signal lost.. Reset data
   }
   Serial.print("Left Y= ");

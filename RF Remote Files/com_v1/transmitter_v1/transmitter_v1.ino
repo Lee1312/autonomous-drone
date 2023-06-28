@@ -67,7 +67,7 @@ void loop() {
     Serial.print(data.throttle);
     Serial.print(" X= ");
     data.yaw = mapJoystickValues(analogRead(A1),12,515,1020,false);
-    Serial.print(analogRead(A1));
+    Serial.print(data.yaw);
     Serial.print(" Right Y= ");
     data.pitch = mapJoystickValues(analogRead(A2),12,520,1020,false);
     Serial.print(data.pitch);

@@ -60,9 +60,9 @@ float PrevErrorRateRoll, PrevErrorRatePitch, PrevErrorRateYaw;
 float PrevItermRateRoll, PrevItermRatePitch, PrevItermRateYaw;
 float PIDReturn[]={0,0,0};
 
-float PRateRoll=0.6; float PRatePitch=PRateRoll; float PRateYaw = 2;
-float IRateRoll=3.5; float IRatePitch=PRateRoll; float IRateYaw = 12;
-float DRateRoll=0.03; float DRatePitch=PRateRoll; float DRateYaw = 0;
+float PRateRoll=0.4; float PRatePitch=0.4; float PRateYaw = 0.2;
+float IRateRoll=3.5; float IRatePitch=3.5; float IRateYaw = 4;
+float DRateRoll=0; float DRatePitch=0; float DRateYaw = 0;
 //--------
 
 //Motor Variables
@@ -206,6 +206,7 @@ void setup() {
   // put your setup code here, to run once:
 
   Serial.begin(115200);
+  Serial.println("START SETUP");
   //LED Setup
   pinMode(LEDRedPin,OUTPUT);  
   pinMode(LEDGreenPin,OUTPUT);   
@@ -219,11 +220,16 @@ void setup() {
   delay(500);  
   digitalWrite(LEDRedPin, HIGH);
 
+  Serial.println("LED SETUP FINISH");
+
+
   //Start communicating with MPU
   Wire.setClock(400000);
   Wire.begin();
   delay(250);
   setupMPU(gyro250,accel4);
+
+  Serial.println("GYRO AND RADIO FINISH");
 
   //DONT TOUCH DRONE WHILE CALIBRATION
   for(int i=0; i<2000; i++) //Calibrate the Gyroscope
@@ -234,11 +240,15 @@ void setup() {
     RateYaw_Calib+=RateYaw;
     delay(1);
   }
+
+ 
   
   //Calibartion variables for our GYRO  
   RateRoll_Calib/=2000;
   RatePitch_Calib/=2000;
   RateYaw_Calib/=2000;
+
+  Serial.println("GYRO CALIB FINISH");
 
   //PWM MOTOR SETUP
   pinMode(Motor1Pin,OUTPUT);
@@ -266,6 +276,7 @@ void setup() {
   LoopTimer = micros();  
   digitalWrite(LEDRedPin, LOW);
   digitalWrite(LEDGreenPin, HIGH);
+  Serial.print("FINISHED SETUP");
 
 }
 
@@ -358,12 +369,12 @@ void loop() {
 
 void print_Data(){
   
-  // Serial.print("Gyro (deg) X= ");
-  // Serial.print(RateRoll);
-  // Serial.print(" Y= ");
-  // Serial.print(RatePitch);
-  // Serial.print(" Z= ");  
-  // Serial.print(RateYaw);
+  Serial.print("Gyro (deg) X= ");
+  Serial.print(RateRoll);
+  Serial.print(" Y= ");
+  Serial.print(RatePitch);
+  Serial.print(" Z= ");  
+  Serial.print(RateYaw);
   
   Serial.print(" Throttle= ");
   Serial.print(InputThrottle);

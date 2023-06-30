@@ -1,23 +1,22 @@
 #include <WiFi.h>
-#include <WebServer.h>
+#include <ESPAsyncWebServer.h>
 #include <WebSocketsServer.h>
 #include <ArduinoJson.h>
 #include <Wire.h>
 #include <SPI.h>
 #include <nRF24L01.h>
 #include <RF24.h>
+#include <SPIFFS.h>
 // SSID and password of Wifi connection:
 const char* ssid = "Baka Coka";
 const char* password = "M@rence1337";
 
-WebServer server(80);
+AsyncWebServer server(80);
 WebSocketsServer webSocket = WebSocketsServer(81);
-
-//Google 'HTML COMPRESS' and use it to compress the whole HTML site to a single string!
-String webpage = "<!DOCTYPE html><html><head><title>ESP32 PID-Tune</title></head><body style='background-color: #EEEEEE;'><span style='color: #003366;'><h1>ESP32 PID-Tune</h1><h2>SET PID Values</h2><p>Write DECIMAL VALUES with DOT (example '3.14')</p><table bgcolor='#000000'> <tr bgcolor='#ffffff'> <th></th> <th>Pitch</th> <th>Roll</th> <th>Yaw</th> </tr bgcolor='#ffffff'><tr bgcolor='#ffffff'> <td>P VALUES</td> <td><input type='number' id='p-pitch' step='0.01'></td> <td><input type='number' id='p-roll' step='0.01'></td> <td><input type='number' id='p-yaw' step='0.01'></td></tr><tr bgcolor='#ffffff'> <td>I VALUES</td> <td><input type='number' id='i-pitch' step='0.01'></td> <td><input type='number' id='i-roll' step='0.01'></td> <td><input type='number' id='i-yaw' step='0.01'></td></tr><tr bgcolor='#ffffff'> <td>D VALUES</td> <td><input type='number' id='d-pitch' step='0.01'></td> <td><input type='number' id='d-roll' step='0.01'></td> <td><input type='number' id='d-yaw' step='0.01'></td></tr></table> <p><button type='button' id='btn'> Send PID values to ESP32 </button></p><h3>ACKNOWLEDGE that ESP32 recived the values</h3><p>(Values from both tables should match)</p><table cellspacing='3' bgcolor='#000000'> <caption>Current ESP32 PID Values</caption> <tr bgcolor='#ffffff'> <th></th> <th>Pitch</th> <th>Roll</th> <th>Yaw</th> </tr><tr bgcolor='#ffffff'> <td>P VALUES</td> <td><span id='p-pitch-ack'></span></td> <td><span id='p-roll-ack'></span></td> <td><span id='p-yaw-ack'></span></td></tr><tr bgcolor='#ffffff'> <td>I VALUES</td> <td><span id='i-pitch-ack'></span></td> <td><span id='i-roll-ack'></span></td> <td><span id='i-yaw-ack'></span></td></tr><tr bgcolor='#ffffff'> <td>D VALUES</td> <td><span id='d-pitch-ack'></span></td> <td><span id='d-roll-ack'></span></td> <td><span id='d-yaw-ack'></span></td></tr></table> <h2>GRAPHS</h2></span></body><script>var Socket;document.getElementById('btn').addEventListener('click',send_pid_to_Esp32);function send_pid_to_Esp32(){ var p_pitch_val = document.getElementById('p-pitch').value; var p_roll_val = document.getElementById('p-roll').value; var p_yaw_val = document.getElementById('p-yaw').value; var i_pitch_val = document.getElementById('i-pitch').value; var i_roll_val = document.getElementById('i-roll').value; var i_yaw_val = document.getElementById('i-yaw').value; var d_pitch_val = document.getElementById('d-pitch').value; var d_roll_val = document.getElementById('d-roll').value; var d_yaw_val = document.getElementById('d-yaw').value;var pid = {p_pitch: p_pitch_val, p_roll:p_roll_val, p_yaw: p_yaw_val, i_pitch: i_pitch_val, i_roll: i_roll_val, i_yaw: i_yaw_val, d_pitch: d_pitch_val, d_roll: d_roll_val, d_yaw: d_yaw_val}; console.log('Send PID to ESP32'); console.log(JSON.stringify(pid));Socket.send(JSON.stringify(pid));}function init(){Socket = new WebSocket('ws://'+window.location.hostname+':81/');Socket.onmessage = function(event){processCommand(event);};}function processCommand(event){var obj = JSON.parse(event.data); console.log('Recived PID from ESP32');console.log(obj);document.getElementById('p-pitch-ack').innerHTML = obj.p_pitch_ack;document.getElementById('p-roll-ack').innerHTML = obj.p_roll_ack; document.getElementById('p-yaw-ack').innerHTML = obj.p_yaw_ack; document.getElementById('i-pitch-ack').innerHTML = obj.i_pitch_ack;document.getElementById('i-roll-ack').innerHTML = obj.i_roll_ack; document.getElementById('i-yaw-ack').innerHTML = obj.i_yaw_ack; document.getElementById('d-pitch-ack').innerHTML = obj.d_pitch_ack;document.getElementById('d-roll-ack').innerHTML = obj.d_roll_ack; document.getElementById('d-yaw-ack').innerHTML = obj.d_yaw_ack;}window.onload = function(event){init();}</script></html>";
 
 StaticJsonDocument<200> doc_tx;
 StaticJsonDocument<200> doc_rx;
+int httpTickerSender = 0;
 
 //Defines
 #define gyro250 0   //Gyro Fullscale Range +/- 250deg/sec
@@ -37,7 +36,6 @@ int LEDGreenPin = 14;
 short gyro_x, gyro_y, gyro_z;
 float RateRoll, RatePitch, RateYaw;
 float RateRoll_Calib,RatePitch_Calib,RateYaw_Calib;
-int Rate_Calib_Number;
 //Gyroscope settings
 int gyroScaleRange;
 float gyroNormalizer;
@@ -172,7 +170,7 @@ void readGyroscope(){
   Wire.write(0x43);  //Starting Register for Gyrometer Readings
   Wire.endTransmission();
 
-  Wire.requestFrom(0b1101000,6); //Requests the registers from (3B->40)
+  Wire.requestFrom(0b1101000,6); //Requests the registers from (43->48)
   while(Wire.available()<6);
   gyro_x=Wire.read()<<8|Wire.read();
   gyro_y=Wire.read()<<8|Wire.read();
@@ -184,9 +182,9 @@ void readGyroscope(){
 //Get Degree Rate from Gyroscope
 void processGyroData(){
   //Normalized data
-  RateRoll=gyro_x/gyroNormalizer;
-  RatePitch=gyro_y/gyroNormalizer; 
-  RateYaw=gyro_z/gyroNormalizer;   
+  RateRoll=(float)gyro_x/gyroNormalizer;
+  RatePitch=(float)gyro_y/gyroNormalizer; 
+  RateYaw=(float)gyro_z/gyroNormalizer;   
 }
 
 void PID_Equation(float Error, float P, float I, float D, float PrevError, float PrevIterm){
@@ -222,6 +220,10 @@ void setup() {
   pinMode(LEDRedPin,OUTPUT);  
   pinMode(LEDGreenPin,OUTPUT); 
 
+  if(!SPIFFS.begin()){
+    Serial.println("SPIFFS could not initialize");
+  }
+
   WiFi.begin(ssid, password);
   Serial.println("Establishing connection to WiFi with SSID: " + String(ssid));
  
@@ -237,13 +239,19 @@ void setup() {
   Serial.print("Connected to network with IP address: ");
   Serial.println(WiFi.localIP());
 
-  server.on("/", [](){
-    server.send(200, "text\html",webpage);
+  server.on("/",HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/webpage.html","text/html");
   });
 
-  server.begin();
+  server.onNotFound([](AsyncWebServerRequest *request){
+     request->send(404,"text/plain","File not found");
+  });
+
+  server.serveStatic("/",SPIFFS,"/");
+  
   webSocket.begin();
   webSocket.onEvent(webSocketEvent);
+  server.begin();
   
   digitalWrite(LEDRedPin, LOW);
   digitalWrite(LEDGreenPin, LOW); 
@@ -262,12 +270,12 @@ void setup() {
   Wire.setClock(400000);
   Wire.begin();
   delay(250);
-  setupMPU(gyro250,accel4);
+  setupMPU(gyro500,accel4);
 
   Serial.println("GYRO AND RADIO FINISH");
 
   //DONT TOUCH DRONE WHILE CALIBRATION
-  for(int i=0; i<2000; i++) //Calibrate the Gyroscope
+  for(int i=0; i<5000; i++) //Calibrate the Gyroscope
   {
     readGyroscope();
     RateRoll_Calib+=RateRoll;
@@ -277,9 +285,9 @@ void setup() {
   }
   
   //Calibartion variables for our GYRO  
-  RateRoll_Calib/=2000;
-  RatePitch_Calib/=2000;
-  RateYaw_Calib/=2000;
+  RateRoll_Calib/=5000;
+  RatePitch_Calib/=5000;
+  RateYaw_Calib/=5000;
 
   Serial.println("GYRO CALIB FINISH");
 
@@ -306,17 +314,15 @@ void setup() {
   radio.setPALevel(RF24_PA_MIN);
   radio.startListening();
 
-  LoopTimer = micros();  
+ 
   digitalWrite(LEDRedPin, LOW);
   digitalWrite(LEDGreenPin, HIGH);
   Serial.print("FINISHED SETUP");
-
+  LoopTimer = micros(); 
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
-
-  server.handleClient();
   webSocket.loop();
 
   readGyroscope();
@@ -373,7 +379,7 @@ void loop() {
   if(Motor4Input > 2000) Motor4Input=1999;
     
   //Keep motor spining if no input but throttle is used!
-  int ThrottleIdle = 1150;  
+  int ThrottleIdle = 1080;  
   if(Motor1Input < ThrottleIdle) Motor1Input=ThrottleIdle;
   if(Motor2Input < ThrottleIdle) Motor2Input=ThrottleIdle;
   if(Motor3Input < ThrottleIdle) Motor3Input=ThrottleIdle;
@@ -396,7 +402,10 @@ void loop() {
   ledcWrite(3,Motor4Input);
 
   print_Data();
-  
+  httpTickerSender++;
+  if(httpTickerSender%4 == 0){
+    sendGraph();
+  }  
   //Finish the 250Hz Controll Loop!
   while(micros() - LoopTimer < 4000);
   LoopTimer = micros();  
@@ -439,7 +448,6 @@ void webSocketEvent(byte num, WStype_t type, uint8_t * payload, size_t length ){
         Serial.println("D-PITCH: "+ String(DRatePitch));
         Serial.println("D-ROLL: "+ String(DRateRoll));
         Serial.println("D-YAW: "+ String(DRateYaw));
-
         sendAcknowledge();
       }  
       Serial.println();
@@ -447,10 +455,27 @@ void webSocketEvent(byte num, WStype_t type, uint8_t * payload, size_t length ){
   }
 }
 
+void sendGraph(){
+  String jsonString = "";
+  JsonObject objectjson = doc_tx.to<JsonObject>();
+  objectjson["type"]="GRAPH";
+  objectjson["pitch_real"]=RatePitch;
+  objectjson["pitch_desired"]=DesiredRatePitch;
+  objectjson["pitch_error"]=ErrorRatePitch;
+  objectjson["roll_real"]=RateRoll;
+  objectjson["roll_desired"]=DesiredRateRoll;
+  objectjson["roll_error"]=ErrorRateRoll;
+  objectjson["yaw_real"]=RateYaw;
+  objectjson["yaw_desired"]=DesiredRateYaw;
+  objectjson["yaw_error"]=ErrorRateYaw;
+  serializeJson(doc_tx,jsonString);
+  webSocket.broadcastTXT(jsonString);
+}
 
 void sendAcknowledge(){
   String jsonString = "";
   JsonObject objectjson = doc_tx.to<JsonObject>();
+  objectjson["type"]="ACK";
   objectjson["p_pitch_ack"]=PRatePitch;
   objectjson["p_roll_ack"]=PRateRoll;
   objectjson["p_yaw_ack"]=PRateYaw;
@@ -474,27 +499,27 @@ void print_Data(){
   Serial.print(" Z= ");  
   Serial.print(RateYaw);
   
-  Serial.print(" Throttle= ");
-  Serial.print(InputThrottle);
-  Serial.print(" Roll= ");
-  Serial.print(InputRoll);
-  Serial.print(" Pitch= ");
-  Serial.print(InputPitch);
-  Serial.print(" Yaw= ");
-  Serial.print(InputYaw);
+//  Serial.print(" Throttle= ");
+//  Serial.print(InputThrottle);
+//  Serial.print(" Roll= ");
+//  Serial.print(InputRoll);
+//  Serial.print(" Pitch= ");
+//  Serial.print(InputPitch);
+//  Serial.print(" Yaw= ");
+//  Serial.print(InputYaw);
   
-  // Serial.print(" DesiredRoll= ");
-  // Serial.print((int)data.roll);
-  // Serial.print(" <=> ");
-  // Serial.print( DesiredRateRoll);
-  // Serial.print(" DesiredPitch= ");
-  // Serial.print((int)data.pitch);
-  // Serial.print(" <=> ");
-  // Serial.print(DesiredRatePitch);
-  // Serial.print(" DesiredYaw= ");
-  // Serial.print((int)data.yaw );
-  // Serial.print(" <=> ");
-  // Serial.println( DesiredRateYaw);
+   Serial.print(" DesiredRoll= ");
+   Serial.print((int)data.roll);
+   Serial.print(" <=> ");
+   Serial.print( DesiredRateRoll);
+   Serial.print(" DesiredPitch= ");
+   Serial.print((int)data.pitch);
+   Serial.print(" <=> ");
+   Serial.print(DesiredRatePitch);
+   Serial.print(" DesiredYaw= ");
+   Serial.print((int)data.yaw );
+   Serial.print(" <=> ");
+   Serial.println( DesiredRateYaw);
   
   Serial.print("M1= ");
   Serial.print(Motor1Input);

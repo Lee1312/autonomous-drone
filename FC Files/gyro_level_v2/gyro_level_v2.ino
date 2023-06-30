@@ -129,7 +129,7 @@ void readGyroscope(){
   Wire.write(0x43);  //Starting Register for Gyrometer Readings
   Wire.endTransmission();
 
-  Wire.requestFrom(0b1101000,6); //Requests the registers from (3B->40)
+  Wire.requestFrom(0b1101000,6); //Requests the registers from (43->48)
   while(Wire.available()<6);
   gyro_x=Wire.read()<<8|Wire.read();
   gyro_y=Wire.read()<<8|Wire.read();

@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>ESP32 PID-Tune</title>
+<script
+src='chrt.js'>
+</script>
+</head>
+<body style='background-color: #EEEEEE;'>
+
+<span style='color: #003366;'>
+
+<h1>ESP32 PID-Tune</h1>
+<h2>SET PID Values</h2>
+
+<p>Write DECIMAL VALUES with DOT (example '3.14')</p>
+
+<table bgcolor='#000000'>
+    <tr bgcolor='#ffffff'>
+        <th></th>
+        <th>Pitch</th>
+        <th>Roll</th>
+        <th>Yaw</th>        
+    </tr bgcolor='#ffffff'>
+<tr bgcolor='#ffffff'>
+    <td>P VALUES</td>
+    <td><input type='number' id='p-pitch' step='0.01'></td>
+    <td><input type='number' id='p-roll' step='0.01'></td>
+    <td><input type='number' id='p-yaw' step='0.01'></td>
+</tr>
+<tr bgcolor='#ffffff'>
+    <td>I VALUES</td>
+    <td><input type='number' id='i-pitch' step='0.01'></td>
+    <td><input type='number' id='i-roll' step='0.01'></td>
+    <td><input type='number' id='i-yaw'  step='0.01'></td>
+</tr>
+<tr bgcolor='#ffffff'>
+    <td>D VALUES</td>
+    <td><input type='number' id='d-pitch' step='0.01'></td>
+    <td><input type='number' id='d-roll' step='0.01'></td>
+    <td><input type='number' id='d-yaw' step='0.01'></td>
+</tr>
+</table> 
+
+<p><button type='button' id='btn'> Send PID values to ESP32 </button></p>
+
+<h3>ACKNOWLEDGE that ESP32 recived the values</h3>
+<p>(Values from both tables should match)</p>
+
+<table cellspacing='3' bgcolor='#000000'>
+    <caption>Current ESP32 PID Values</caption>
+    <tr bgcolor='#ffffff'>
+        <th></th>
+        <th>Pitch</th>
+        <th>Roll</th>
+        <th>Yaw</th>        
+    </tr>
+<tr bgcolor='#ffffff'>
+    <td>P VALUES</td>
+    <td><span id='p-pitch-ack'></span></td>
+    <td><span id='p-roll-ack'></span></td>
+    <td><span id='p-yaw-ack'></span></td>
+</tr>
+<tr bgcolor='#ffffff'>
+    <td>I VALUES</td>
+    <td><span id='i-pitch-ack'></span></td>
+    <td><span id='i-roll-ack'></span></td>
+    <td><span id='i-yaw-ack'></span></td>
+</tr>
+<tr bgcolor='#ffffff'>
+    <td>D VALUES</td>
+    <td><span id='d-pitch-ack'></span></td>
+    <td><span id='d-roll-ack'></span></td>
+    <td><span id='d-yaw-ack'></span></td>
+</tr>
+</table> 
+
+<h2>GRAPHS</h2>
+
+<canvas id="pitchChart" style="width:100%;max-width:700px"></canvas>
+<canvas id="rollChart" style="width:100%;max-width:700px"></canvas>
+<canvas id="yawChart" style="width:100%;max-width:700px"></canvas>
+
+</span>
+
+</body>
+
+<script>
+var Socket;
+var desired_pitch=[];
+var read_pitch=[];
+var desired_roll=[];
+var read_roll=[];
+var desired_yaw=[];
+var read_yaw=[];
+
+const xValues = [100,200,300,400,500,600,700,800,900,1000];
+
+new Chart("pitchChart", {
+  type: "line",
+  data: {
+    labels: xValues,
+    datasets: [{
+      data: [860,1140,1060,1060,1070,1110,1330,2210,7830,2478],
+      borderColor: "red",
+      fill: false
+    },{
+      data: [1600,1700,1700,1900,2000,2700,4000,5000,6000,7000],
+      borderColor: "green",
+      fill: false
+    },{
+      data: [300,700,2000,5000,6000,4000,2000,1000,200,100],
+      borderColor: "blue",
+      fill: false
+    }]
+  },
+  options: {
+    legend: {display: false}
+  }
+});
+
+document.getElementById('btn').addEventListener('click',send_pid_to_Esp32);
+
+function send_pid_to_Esp32(){
+
+    var p_pitch_val = document.getElementById('p-pitch').value;
+    var p_roll_val = document.getElementById('p-roll').value;
+    var p_yaw_val = document.getElementById('p-yaw').value;
+
+    var i_pitch_val = document.getElementById('i-pitch').value;
+    var i_roll_val = document.getElementById('i-roll').value;
+    var i_yaw_val = document.getElementById('i-yaw').value;
+
+    var d_pitch_val = document.getElementById('d-pitch').value;
+    var d_roll_val = document.getElementById('d-roll').value;
+    var d_yaw_val = document.getElementById('d-yaw').value;
+
+	var pid = {
+		p_pitch: p_pitch_val,
+        p_roll:p_roll_val,
+        p_yaw: p_yaw_val, 
+        i_pitch: i_pitch_val,
+        i_roll: i_roll_val,
+        i_yaw: i_yaw_val,
+        d_pitch: d_pitch_val,
+        d_roll: d_roll_val,
+        d_yaw: d_yaw_val
+	};
+    console.log('Send PID to ESP32');
+    console.log(JSON.stringify(pid));
+	Socket.send(JSON.stringify(pid));
+}
+function init(){
+	Socket = new WebSocket('ws://'+window.location.hostname+':81/');
+	Socket.onmessage = function(event){
+		processCommand(event);
+	};	
+}
+
+function processCommand(event){
+	var obj = JSON.parse(event.data);
+
+    console.log('Recived PID from ESP32');
+	console.log(obj);
+	
+	document.getElementById('p-pitch-ack').innerHTML =  obj.p_pitch_ack;
+	document.getElementById('p-roll-ack').innerHTML = obj.p_roll_ack;
+    document.getElementById('p-yaw-ack').innerHTML = obj.p_yaw_ack;
+    document.getElementById('i-pitch-ack').innerHTML = obj.i_pitch_ack;
+	document.getElementById('i-roll-ack').innerHTML = obj.i_roll_ack;
+    document.getElementById('i-yaw-ack').innerHTML = obj.i_yaw_ack;
+    document.getElementById('d-pitch-ack').innerHTML = obj.d_pitch_ack;
+	document.getElementById('d-roll-ack').innerHTML = obj.d_roll_ack;
+    document.getElementById('d-yaw-ack').innerHTML = obj.d_yaw_ack;
+}
+
+window.onload = function(event){
+	init();
+}
+</script>
+</html>

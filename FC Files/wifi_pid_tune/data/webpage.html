@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>ESP32 PID-Tune</title>
+
+
+</head>
+
+<body style='background-color: #EEEEEE;'>
+    <script src="chart.js"></script>    
+
+
+<h1>ESP32 PID-Tune</h1>
+<h2>SET PID Values</h2>
+
+<p>Write DECIMAL VALUES with DOT (example '3.14')</p>
+
+<table bgcolor='#000000'>
+    <tr bgcolor='#ffffff'>
+        <th></th>
+        <th>Pitch</th>
+        <th>Roll</th>
+        <th>Yaw</th>        
+    </tr bgcolor='#ffffff'>
+<tr bgcolor='#ffffff'>
+    <td>P VALUES</td>
+    <td><input type='number' id='p-pitch' step='0.01'></td>
+    <td><input type='number' id='p-roll' step='0.01'></td>
+    <td><input type='number' id='p-yaw' step='0.01'></td>
+</tr>
+<tr bgcolor='#ffffff'>
+    <td>I VALUES</td>
+    <td><input type='number' id='i-pitch' step='0.01'></td>
+    <td><input type='number' id='i-roll' step='0.01'></td>
+    <td><input type='number' id='i-yaw'  step='0.01'></td>
+</tr>
+<tr bgcolor='#ffffff'>
+    <td>D VALUES</td>
+    <td><input type='number' id='d-pitch' step='0.01'></td>
+    <td><input type='number' id='d-roll' step='0.01'></td>
+    <td><input type='number' id='d-yaw' step='0.01'></td>
+</tr>
+</table> 
+
+<p><button type='button' id='btn'> Send PID values to ESP32 </button></p>
+
+<h3>ACKNOWLEDGE that ESP32 recived the values</h3>
+<p>(Values from both tables should match)</p>
+
+<table cellspacing='3' bgcolor='#000000'>
+    <caption>Current ESP32 PID Values</caption>
+    <tr bgcolor='#ffffff'>
+        <th></th>
+        <th>Pitch</th>
+        <th>Roll</th>
+        <th>Yaw</th>        
+    </tr>
+<tr bgcolor='#ffffff'>
+    <td>P VALUES</td>
+    <td><span id='p-pitch-ack'></span></td>
+    <td><span id='p-roll-ack'></span></td>
+    <td><span id='p-yaw-ack'></span></td>
+</tr>
+<tr bgcolor='#ffffff'>
+    <td>I VALUES</td>
+    <td><span id='i-pitch-ack'></span></td>
+    <td><span id='i-roll-ack'></span></td>
+    <td><span id='i-yaw-ack'></span></td>
+</tr>
+<tr bgcolor='#ffffff'>
+    <td>D VALUES</td>
+    <td><span id='d-pitch-ack'></span></td>
+    <td><span id='d-roll-ack'></span></td>
+    <td><span id='d-yaw-ack'></span></td>
+</tr>
+</table> 
+
+<h2>GRAPHS</h2>
+
+<table style="width: 100%; min-width: 100%;">
+  <tr>
+    <td><canvas id="pitchChart" style="width:100%;max-width:600px"></canvas></td>
+    <td><canvas id="motorChart" style="width:100%;max-width:600px"></canvas></td>
+  </tr>
+  <tr>
+    <td><canvas id="rollChart" style="width:100%;max-width:600px"></canvas></td>
+    <td><canvas id="inputChart" style="width:100%;max-width:600px"></canvas></td>
+  </tr>
+  <tr>
+    <td><canvas id="yawChart" style="width:100%;max-width:600px"></canvas></td>
+  </tr>
+</table>
+
+
+
+<script>  
+    const n = 250
+    const xValues = [...Array(n).keys()];
+    var desired_pitch=[];
+    var real_pitch=[];
+    var error_pitch=[];
+    var desired_roll=[];
+    var real_roll=[];
+    var error_roll=[];
+    var desired_yaw=[];
+    var real_yaw=[];
+    var error_yaw=[];
+    var motor1=[];
+    var motor2=[];
+    var motor3=[];
+    var motor4=[];
+    var inputThrottle=[];
+    var inputPitch=[];
+    var inputRoll=[];
+    var inputYaw=[];
+
+    for (let i=0; i<n; ++i) 
+    {
+      desired_pitch[i]=0;
+      real_pitch[i]=0;
+      error_pitch[i]=0;
+      desired_roll[i]=0;
+      real_roll[i]=0;
+      error_roll[i]=0;
+      desired_yaw[i]=0;
+      real_yaw[i]=0;
+      error_yaw[i]=0;
+      motor1[i]=0;
+      motor2[i]=0;
+      motor3[i]=0;
+      motor4[i]=0;
+      inputThrottle[i]=0;
+      inputPitch[i]=0;
+      inputRoll[i]=0;
+      inputYaw[i]=0;
+    }
+
+    const pitchChart = new Chart("pitchChart", {
+      type: "line",
+      data: {
+        labels: xValues,
+        datasets: [{
+        label: "ERROR",
+          data: error_pitch,
+          borderColor: "red",
+          fill: false
+        }, { 
+            label: "REAL",
+          data: real_pitch,
+          borderColor: "green",
+          fill: false
+        }, { 
+            label:"DESIRED",
+          data: desired_pitch,
+          borderColor: "blue",
+          fill: false
+        }]
+      },
+      options: {
+        legend: {display: true},
+        title:{display:true,
+            text:"Pitch Chart"}
+      }
+    });
+    </script>
+  <script>
+        
+  const motorChart = new Chart("motorChart", {
+        type: "line",
+        data: {
+          labels: xValues,
+          datasets: [{ 
+            label: "MOTOR 1",
+            data: motor1,
+            borderColor: "red",
+            fill: false
+          }, { 
+            label: "MOTOR 2",
+            data: motor2,
+            borderColor: "green",
+            fill: false
+          }, { 
+            label:"MOTOR 3",
+            data: motor3,
+            borderColor: "blue",
+            fill: false
+          },
+          { 
+            label: "MOTOR 4",
+            data: motor4,
+            borderColor: "yellow",
+            fill: false
+          }]
+        },
+        options: {
+          legend: {display: true},
+          title:{display:true,
+          text:"Motor Chart"}
+        }
+      });
+      </script>
+          <script>
+        
+            const inputChart = new Chart("inputChart", {
+                  type: "line",
+                  data: {
+                    labels: xValues,
+                    datasets: [{ 
+                      label: "INPUT THROTTLE",
+                      data: inputThrottle,
+                      borderColor: "red",
+                      fill: false
+                    }, { 
+                      label: "INPUT PITCH",
+                      data: inputPitch,
+                      borderColor: "green",
+                      fill: false
+                    }, { 
+                      label:"INPUT ROLL",
+                      data: inputRoll,
+                      borderColor: "blue",
+                      fill: false
+                    }, { 
+                      label:"INPUT YAW",
+                      data: inputYaw,
+                      borderColor: "yellow",
+                      fill: false
+                    }]
+                  },
+                  options: {
+                    legend: {display: true},
+                    title:{display:true,
+                    text:"Input Chart"}
+                  }
+                });
+                </script>
+    <script>
+        
+    const rollChart = new Chart("rollChart", {
+          type: "line",
+          data: {
+            labels: xValues,
+            datasets: [{ 
+              label: "ERROR",
+              data: error_roll,
+              borderColor: "red",
+              fill: false
+            }, { 
+              label: "REAL",
+              data: real_roll,
+              borderColor: "green",
+              fill: false
+            }, { 
+              label:"DESIRED",
+              data: desired_roll,
+              borderColor: "blue",
+              fill: false
+            }]
+          },
+          options: {
+            legend: {display: true},
+            title:{display:true,
+            text:"Roll Chart"}
+          }
+        });
+        </script>
+        <script>
+    
+    const yawChart = new Chart("yawChart", {
+      type: "line",
+      data: {
+        labels: xValues,
+        datasets: [{ 
+          label: "ERROR",
+          data: error_yaw,
+          borderColor: "red",
+          fill: false
+        }, { 
+          label: "REAL",
+          data: real_yaw,
+          borderColor: "green",
+          fill: false
+        }, { 
+          label:"DESIRED",
+          data: desired_yaw,
+          borderColor: "blue",
+          fill: false
+        }]
+      },
+      options: {
+        legend: {display: true},
+        title:{display:true,
+            text:"Yaw Chart"}
+      }
+    });
+    </script>
+</body>
+<script>
+    var Socket;
+    document.getElementById('btn').addEventListener('click',send_pid_to_Esp32);
+    
+    function send_pid_to_Esp32(){
+    
+        var p_pitch_val = document.getElementById('p-pitch').value;
+        var p_roll_val = document.getElementById('p-roll').value;
+        var p_yaw_val = document.getElementById('p-yaw').value;
+    
+        var i_pitch_val = document.getElementById('i-pitch').value;
+        var i_roll_val = document.getElementById('i-roll').value;
+        var i_yaw_val = document.getElementById('i-yaw').value;
+    
+        var d_pitch_val = document.getElementById('d-pitch').value;
+        var d_roll_val = document.getElementById('d-roll').value;
+        var d_yaw_val = document.getElementById('d-yaw').value;
+    
+        var pid = {
+            p_pitch: p_pitch_val,
+            p_roll:p_roll_val,
+            p_yaw: p_yaw_val, 
+            i_pitch: i_pitch_val,
+            i_roll: i_roll_val,
+            i_yaw: i_yaw_val,
+            d_pitch: d_pitch_val,
+            d_roll: d_roll_val,
+            d_yaw: d_yaw_val
+        };
+        console.log('Send PID to ESP32');
+        Socket.send(JSON.stringify(pid));
+    }
+    function init(){
+        Socket = new WebSocket('ws://'+window.location.hostname+':81/');
+        Socket.onmessage = function(event){
+            processCommand(event);
+        };	
+    }
+    
+    function processCommand(event){
+        var obj = JSON.parse(event.data);
+        var type = obj.type;
+        if(type.localeCompare("ACK") == 0){
+          document.getElementById('p-pitch-ack').innerHTML =  obj.p_pitch_ack;
+          document.getElementById('p-roll-ack').innerHTML = obj.p_roll_ack;
+          document.getElementById('p-yaw-ack').innerHTML = obj.p_yaw_ack;
+          document.getElementById('i-pitch-ack').innerHTML = obj.i_pitch_ack;
+          document.getElementById('i-roll-ack').innerHTML = obj.i_roll_ack;
+          document.getElementById('i-yaw-ack').innerHTML = obj.i_yaw_ack;
+          document.getElementById('d-pitch-ack').innerHTML = obj.d_pitch_ack;
+          document.getElementById('d-roll-ack').innerHTML = obj.d_roll_ack;
+          document.getElementById('d-yaw-ack').innerHTML = obj.d_yaw_ack;
+        }else if(type.localeCompare("GRAPH") == 0){
+          this.desired_pitch.push(obj.pitch_desired);
+          this.real_pitch.push(obj.pitch_real);
+          this.error_pitch.push(obj.pitch_error);
+          this.desired_roll.push(obj.roll_desired);
+          this.real_roll.push(obj.roll_real);
+          this.error_roll.push(obj.roll_error);
+          this.desired_yaw.push(obj.yaw_desired);
+          this.real_yaw.push(obj.yaw_real);
+          this.error_yaw.push(obj.yaw_error);
+          this.motor1.push(obj.motor1);
+          this.motor2.push(obj.motor2);
+          this.motor3.push(obj.motor3);
+          this.motor4.push(obj.motor4);
+          this.inputThrottle.push(obj.inputThrottle);
+          this.inputPitch.push(obj.inputPitch);
+          this.inputRoll.push(obj.inputRoll);
+          this.inputYaw.push(obj.inputYaw);
+
+          if(desired_pitch.length>250){
+            this.desired_pitch.shift();
+            this.real_pitch.shift();
+            this.error_pitch.shift();
+            this.desired_roll.shift();
+            this.real_roll.shift();
+            this.error_roll.shift();
+            this.desired_yaw.shift();
+            this.real_yaw.shift();
+            this.error_yaw.shift();
+            this.motor1.shift();
+            this.motor2.shift();
+            this.motor3.shift();
+            this.motor4.shift();
+            this.inputThrottle.shift();
+            this.inputPitch.shift();
+            this.inputRoll.shift();
+            this.inputYaw.shift();
+          }
+
+  
+          pitchChart.update();
+          rollChart.update();
+          yawChart.update();
+          motorChart.update();
+          inputChart.update();
+        }
+    }
+    
+    window.onload = function(event){
+        init();
+    }
+    </script>
+
+
+</html>

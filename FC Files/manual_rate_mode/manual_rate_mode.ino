@@ -383,7 +383,7 @@ void print_Data(){
   Serial.print(" Pitch= ");
   Serial.print(InputPitch);
   Serial.print(" Yaw= ");
-  Serial.print(InputYaw);
+  Serial.println(InputYaw);
   
   // Serial.print(" DesiredRoll= ");
   // Serial.print((int)data.roll);
@@ -398,13 +398,13 @@ void print_Data(){
   // Serial.print(" <=> ");
   // Serial.println( DesiredRateYaw);
   
-  Serial.print("M1= ");
-  Serial.print(Motor1Input);
-  Serial.print(" M2= ");
-  Serial.print(Motor2Input);
-  Serial.print(" M3= ");
-  Serial.print(Motor3Input);
-  Serial.print(" M4= ");
-  Serial.println(Motor4Input);
+  // Serial.print("M1= ");
+  // Serial.print(Motor1Input);
+  // Serial.print(" M2= ");
+  // Serial.print(Motor2Input);
+  // Serial.print(" M3= ");
+  // Serial.print(Motor3Input);
+  // Serial.print(" M4= ");
+  // Serial.println(Motor4Input);
 }
 

@@ -14,8 +14,8 @@ const char* password = "M@rence1337";
 AsyncWebServer server(80);
 WebSocketsServer webSocket = WebSocketsServer(81);
 
-StaticJsonDocument<200> doc_tx;
-StaticJsonDocument<200> doc_rx;
+StaticJsonDocument<300> doc_tx;
+StaticJsonDocument<300> doc_rx;
 int httpTickerSender = 0;
 
 //Defines
@@ -339,7 +339,7 @@ void loop() {
   InputThrottle = map(data.throttle, 0, 255, 1000, 2000); 
   DesiredRateRoll = map(data.roll, 0, 255 ,-75 , 75);
   DesiredRatePitch = map(data.pitch, 0, 255 ,-75 , 75);
-  DesiredRateYaw = map(data.yaw, 0, 255 ,-75 , 75);
+  DesiredRateYaw = map(data.yaw, 0, 253 ,75 , -75);
 
   //Calculate the errors
   ErrorRateRoll = DesiredRateRoll - RateRoll;
@@ -363,14 +363,14 @@ void loop() {
   PrevErrorRateYaw = PIDReturn[1];  
   PrevItermRateYaw = PIDReturn[2];
   
-  //Limit Throttle <=1800 to leave room for Manuvers
-  if(InputThrottle > 1800) InputThrottle = 1800;  
+  //Limit Throttle <=1750 to leave room for Manuvers
+  if(InputThrottle > 1750) InputThrottle = 1750;  
 
   //Motor Calculations !!! HIGHLY DEPENDS ON MOTOR ORIENTATION AND ESC ORIENTATION !!!
-  Motor1Input = 1.024 * (InputThrottle - InputRoll + InputPitch + InputYaw);
-  Motor2Input = 1.024 * (InputThrottle + InputRoll + InputPitch - InputYaw);
-  Motor3Input = 1.024 * (InputThrottle - InputRoll - InputPitch - InputYaw);
-  Motor4Input = 1.024 * (InputThrottle + InputRoll - InputPitch + InputYaw);
+  Motor1Input = 1.024 * (InputThrottle - InputRoll + InputPitch - InputYaw);
+  Motor2Input = 1.024 * (InputThrottle + InputRoll + InputPitch + InputYaw);
+  Motor3Input = 1.024 * (InputThrottle - InputRoll - InputPitch + InputYaw);
+  Motor4Input = 1.024 * (InputThrottle + InputRoll - InputPitch - InputYaw);
 
   //Avoid overloading motors after equation!
   if(Motor1Input > 2000) Motor1Input=1999;
@@ -403,7 +403,7 @@ void loop() {
 
   print_Data();
   httpTickerSender++;
-  if(httpTickerSender%4 == 0){
+  if(httpTickerSender%5 == 0){
     sendGraph();
   }  
   //Finish the 250Hz Controll Loop!
@@ -468,6 +468,14 @@ void sendGraph(){
   objectjson["yaw_real"]=RateYaw;
   objectjson["yaw_desired"]=DesiredRateYaw;
   objectjson["yaw_error"]=ErrorRateYaw;
+  objectjson["motor1"]=Motor1Input;
+  objectjson["motor2"]=Motor2Input;
+  objectjson["motor3"]=Motor3Input;
+  objectjson["motor4"]=Motor4Input;
+  objectjson["inputThrottle"]=InputThrottle;
+  objectjson["inputPitch"]=InputPitch;
+  objectjson["inputRoll"]=InputRoll;
+  objectjson["inputYaw"]=InputYaw;
   serializeJson(doc_tx,jsonString);
   webSocket.broadcastTXT(jsonString);
 }

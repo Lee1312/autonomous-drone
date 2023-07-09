@@ -77,15 +77,24 @@
 
 <h2>GRAPHS</h2>
 
-
-        <td><canvas id="pitchChart" style="width:100%;max-width:600px"></canvas></td>
-        <td><canvas id="rollChart" style="width:100%;max-width:600px"></canvas></td>
-        <td><canvas id="yawChart" style="width:100%;max-width:600px"></canvas></td>
+<table style="width: 100%; min-width: 100%;">
+  <tr>
+    <td><canvas id="pitchChart" style="width:100%;max-width:600px"></canvas></td>
+    <td><canvas id="motorChart" style="width:100%;max-width:600px"></canvas></td>
+  </tr>
+  <tr>
+    <td><canvas id="rollChart" style="width:100%;max-width:600px"></canvas></td>
+    <td><canvas id="inputChart" style="width:100%;max-width:600px"></canvas></td>
+  </tr>
+  <tr>
+    <td><canvas id="yawChart" style="width:100%;max-width:600px"></canvas></td>
+  </tr>
+</table>
 
 
 
 <script>  
-    const n = 200
+    const n = 250
     const xValues = [...Array(n).keys()];
     var desired_pitch=[];
     var real_pitch=[];
@@ -96,6 +105,14 @@
     var desired_yaw=[];
     var real_yaw=[];
     var error_yaw=[];
+    var motor1=[];
+    var motor2=[];
+    var motor3=[];
+    var motor4=[];
+    var inputThrottle=[];
+    var inputPitch=[];
+    var inputRoll=[];
+    var inputYaw=[];
 
     for (let i=0; i<n; ++i) 
     {
@@ -108,6 +125,14 @@
       desired_yaw[i]=0;
       real_yaw[i]=0;
       error_yaw[i]=0;
+      motor1[i]=0;
+      motor2[i]=0;
+      motor3[i]=0;
+      motor4[i]=0;
+      inputThrottle[i]=0;
+      inputPitch[i]=0;
+      inputRoll[i]=0;
+      inputYaw[i]=0;
     }
 
     const pitchChart = new Chart("pitchChart", {
@@ -138,6 +163,77 @@
       }
     });
     </script>
+  <script>
+        
+  const motorChart = new Chart("motorChart", {
+        type: "line",
+        data: {
+          labels: xValues,
+          datasets: [{ 
+            label: "MOTOR 1",
+            data: motor1,
+            borderColor: "red",
+            fill: false
+          }, { 
+            label: "MOTOR 2",
+            data: motor2,
+            borderColor: "green",
+            fill: false
+          }, { 
+            label:"MOTOR 3",
+            data: motor3,
+            borderColor: "blue",
+            fill: false
+          },
+          { 
+            label: "MOTOR 4",
+            data: motor4,
+            borderColor: "yellow",
+            fill: false
+          }]
+        },
+        options: {
+          legend: {display: true},
+          title:{display:true,
+          text:"Motor Chart"}
+        }
+      });
+      </script>
+          <script>
+        
+            const inputChart = new Chart("inputChart", {
+                  type: "line",
+                  data: {
+                    labels: xValues,
+                    datasets: [{ 
+                      label: "INPUT THROTTLE",
+                      data: inputThrottle,
+                      borderColor: "red",
+                      fill: false
+                    }, { 
+                      label: "INPUT PITCH",
+                      data: inputPitch,
+                      borderColor: "green",
+                      fill: false
+                    }, { 
+                      label:"INPUT ROLL",
+                      data: inputRoll,
+                      borderColor: "blue",
+                      fill: false
+                    }, { 
+                      label:"INPUT YAW",
+                      data: inputYaw,
+                      borderColor: "yellow",
+                      fill: false
+                    }]
+                  },
+                  options: {
+                    legend: {display: true},
+                    title:{display:true,
+                    text:"Input Chart"}
+                  }
+                });
+                </script>
     <script>
         
     const rollChart = new Chart("rollChart", {
@@ -229,7 +325,6 @@
             d_yaw: d_yaw_val
         };
         console.log('Send PID to ESP32');
-        console.log(JSON.stringify(pid));
         Socket.send(JSON.stringify(pid));
     }
     function init(){
@@ -262,10 +357,16 @@
           this.desired_yaw.push(obj.yaw_desired);
           this.real_yaw.push(obj.yaw_real);
           this.error_yaw.push(obj.yaw_error);
+          this.motor1.push(obj.motor1);
+          this.motor2.push(obj.motor2);
+          this.motor3.push(obj.motor3);
+          this.motor4.push(obj.motor4);
+          this.inputThrottle.push(obj.inputThrottle);
+          this.inputPitch.push(obj.inputPitch);
+          this.inputRoll.push(obj.inputRoll);
+          this.inputYaw.push(obj.inputYaw);
 
-          console.log(obj);
-
-          if(desired_pitch.length>200){
+          if(desired_pitch.length>250){
             this.desired_pitch.shift();
             this.real_pitch.shift();
             this.error_pitch.shift();
@@ -275,12 +376,22 @@
             this.desired_yaw.shift();
             this.real_yaw.shift();
             this.error_yaw.shift();
+            this.motor1.shift();
+            this.motor2.shift();
+            this.motor3.shift();
+            this.motor4.shift();
+            this.inputThrottle.shift();
+            this.inputPitch.shift();
+            this.inputRoll.shift();
+            this.inputYaw.shift();
           }
 
   
           pitchChart.update();
           rollChart.update();
           yawChart.update();
+          motorChart.update();
+          inputChart.update();
         }
     }
     

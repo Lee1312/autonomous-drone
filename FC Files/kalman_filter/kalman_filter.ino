@@ -13,8 +13,8 @@
 
 //Gyroscope variables
 short gyro_x, gyro_y, gyro_z;
-float rotX, rotY, rotZ;
-float gyro_x_Calib,gyro_y_Calib,gyro_z_Calib;
+float RateRoll, RatePitch, RateYaw;
+float RateRoll_Calib,RatePitch_Calib,RateYaw_Calib;
 //Gyroscope settings
 int gyroScaleRange;
 float gyroNormalizer;
@@ -27,34 +27,24 @@ float AngleRoll,AnglePitch;
 int accelScaleRange;
 float accelNormalizer;
 
-void setup() {
-  // Start Serial Monitor                                                 
-  Serial.begin(115200);
-  // Init I2C
-  Wire.setClock(400000);
-  Wire.begin();
-  delay(250);
-  setupMPU(gyro500,accel8);
-  float gyro_x_help,gyro_y_help,gyro_z_help; //Temporary values
-  for(int i=0; i<2000; i++) //Calibrate the Gyroscope
-  {
-    readGyroscope();
-    gyro_x_help+=rotX;
-    gyro_y_help+=rotY;
-    gyro_z_help+=rotZ;
-    delay(1);
-  }
-  gyro_x_Calib=gyro_x_help/2000;
-  gyro_y_Calib=gyro_y_help/2000;
-  gyro_z_Calib=gyro_z_help/2000;
-}
+//Kalman filter variables
+float KalmanAngleRoll = 0, KalmanUncertanityRoll = 2*2;
+float KalmanAnglePitch = 0, KalmanUncertanityPitch = 2*2;
+float Kalman1DOutput[]={0,0};
 
-void loop() {
-  // put your main code here, to run repeatedly:
-  readAccelerometer();
-  readGyroscope();
-  printData();
-  delay(50);
+//Timers
+unsigned long LoopTimer;
+
+//Kalman Filter
+void kalman_1d(float KalmanState,float KalmanUncertanity, float KalmanInput, float KalmanMeasurement){
+  KalmanState = KalmanState + 0.004*KalmanInput;
+  KalmanUncertanity = KalmanUncertanity + 0.004*0.004 + 4 * 4;
+  float KalmanGain = KalmanUncertanity / (KalmanUncertanity + 3*3);
+  KalmanState = KalmanState + KalmanGain * (KalmanMeasurement - KalmanState);
+  KalmanUncertanity = (1-KalmanGain) * KalmanUncertanity;
+
+  Kalman1DOutput[0]=KalmanState;
+  Kalman1DOutput[1]=KalmanUncertanity;
 }
 
 void readAccelerometer(){
@@ -72,7 +62,7 @@ void readAccelerometer(){
 }
 
 void processAccelerometerData(){
-  //NORMALIZED AND CALIBRATED DATA
+  //Normalized and Calibrated Data
   gForceX=acc_x/accelNormalizer-0.05; 
   gForceY=acc_y/accelNormalizer+0.03; 
   gForceZ=acc_z/accelNormalizer+0.07; 
@@ -98,13 +88,67 @@ void readGyroscope(){
   processGyroData();
 }
 
+//Get Degree Rate from Gyroscope
 void processGyroData(){
-  //NORMALIZED AND CALIBRATED DATA
-  rotX=gyro_x/gyroNormalizer - gyro_x_Calib;
-  rotY=gyro_y/gyroNormalizer - gyro_y_Calib; 
-  rotZ=gyro_z/gyroNormalizer - gyro_z_Calib;   
+  //Normalized data
+  RateRoll=(float)gyro_x/gyroNormalizer;
+  RatePitch=(float)gyro_y/gyroNormalizer; 
+  RateYaw=(float)gyro_z/gyroNormalizer;   
 }
 
+void setup() {
+  // Start Serial Monitor                                                 
+  Serial.begin(115200);
+  // Init I2C
+  Wire.setClock(400000);
+  Wire.begin();
+  delay(250);
+
+  setupMPU(gyro500, accel8);
+
+  //DONT TOUCH DRONE WHILE CALIBRATION
+  for(int i=0; i<2000; i++) //Calibrate the Gyroscope
+  {
+    readGyroscope();
+    RateRoll_Calib+=RateRoll;
+    RatePitch_Calib+=RatePitch;
+    RateYaw_Calib+=RateYaw;
+    delay(1);
+  }
+  
+  //Calibartion variables for our GYRO  
+  RateRoll_Calib/=2000;
+  RatePitch_Calib/=2000;
+  RateYaw_Calib/=2000;
+  LoopTimer = micros();
+}
+
+void loop() {
+  // put your main code here, to run repeatedly:
+  readAccelerometer();
+  readGyroscope();
+  RateRoll -= RateRoll_Calib;
+  RatePitch -= RatePitch_Calib;
+  RateYaw -= RateYaw_Calib;
+
+  kalman_1d(KalmanAngleRoll, KalmanUncertanityRoll, RateRoll, AngleRoll);
+  KalmanAngleRoll = Kalman1DOutput[0];
+  KalmanUncertanityRoll = Kalman1DOutput[1];
+
+  kalman_1d(KalmanAnglePitch, KalmanUncertanityPitch, RatePitch, AnglePitch);
+  KalmanAnglePitch = Kalman1DOutput[0];
+  KalmanUncertanityPitch = Kalman1DOutput[1];
+
+  Serial.print("Roll_Angle_[°]:");
+  Serial.print(KalmanAngleRoll);
+  Serial.print(",");
+  Serial.print("Pitch_Angle_[°]:");
+  Serial.println(KalmanAnglePitch);
+
+  while (micros()- LoopTimer<4000);
+  LoopTimer = micros();
+  
+}
 
 
 void setupMPU(int gyroSetting, int accelSetting){
@@ -165,25 +209,4 @@ void initMPU(){
   Wire.write(0x1C); //Register for Accelerometer Configuration!
   Wire.write(accelScaleRange); // Setting the accel to +/- 2g! 0->2g, 1->4g, 2->8g, 3->16g
   Wire.endTransmission();
-}
-
-void printData(){
-  // Serial.print("Gyro (deg) ");
-  // Serial.print(" X=");
-  // Serial.print(rotX);
-  // Serial.print(" Y=");
-  // Serial.print(rotY);
-  // Serial.print(" Z=");
-  // Serial.println(rotZ);
-  Serial.print("Accel (g) ");
-  Serial.print(" X=");
-  Serial.print(gForceX);
-  Serial.print(" Y=");
-  Serial.print(gForceY);
-  Serial.print(" Z=");
-  Serial.print(gForceZ);
-  Serial.print("Roll Angle = ");
-  Serial.print(AngleRoll);
-  Serial.print("Pitch Angle = ");
-  Serial.println(AnglePitch);
 }
